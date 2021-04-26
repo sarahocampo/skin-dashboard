@@ -77,7 +77,6 @@ def unique_related_topics(both_list):
     return unique_topic_list
        
 
-   
 def find_related_variables(db_num=16, unique_topic_list=[]):
     wb.db = db_num
     db_var = wb.series.info()
@@ -88,27 +87,11 @@ def find_related_variables(db_num=16, unique_topic_list=[]):
         id_split = db_var.items[i]['id']
         for val in desc_split:
             if val.lower() in unique_topic_list:
-                related_var_titles.append(desc_split)
+                related_var_titles.append(db_var.items[i]['value'])
                 related_var_ids.append(id_split)
     return related_var_ids, related_var_titles
+
      
-# def find_all_related_variables(unique_topic_list):
-#     all_related_var_id_list = []
-#     db_num_list = []
-#     for i in range(1, 83):
-#         print(i)
-#         related_var_ids, related_var_titles = find_related_variables(db_num=i, unique_topic_list=unique_topic_list)
-#         if len(related_var_ids) != 0:
-#             try:
-#                 all_related_var_id_list.append(related_var_ids)
-#                 db_num_list.append(i)
-#             except wb.APIResponseError:
-#                 all_related_var_id_list.append("")
-#                 db_num_list.append(i)
-#     return all_related_var_id_list, db_num_list
-
-
-
 def find_time_range(db_num):
     time = wb.time.info(db=db_num)
     time_list = []
@@ -137,3 +120,64 @@ def order_and_join_data(df, world_data):
     joined_df = sorted_df.set_index('econ_name').join(sorted_world_data.set_index('economy'))
     joined_df = joined_df.reset_index().drop(columns=['geoName'])
     return joined_df
+
+def create_db_num_list():
+    source_info = wb.source.info()
+    db_num_list = []
+    for i in range (0, len(source_info.items)):
+        db_num_values = source_info.items[i]['id']
+        db_num_list.append(db_num_values)
+    db_num_list = [int(i) for i in db_num_list]
+    db_num_list.remove(2)
+    db_num_list.remove(72)
+    return db_num_list
+
+def find_all_related_variables(unique_topic_list=[]):
+    db_num_list = create_db_num_list()
+    related_ids = []
+    related_titles = []
+    related_db_num = []
+    for x in range(0, len(db_num_list)):
+        db_num = str(db_num_list[x])
+        related_var_ids, related_var_titles = find_related_variables(db_num=db_num, unique_topic_list=unique_topic_list)
+        related_ids.append(related_var_ids)
+        related_titles.append(related_var_titles)
+        for i in range(0, len(related_var_ids)):
+            related_db_num.append(db_num)  
+    related_db_num = [int(i) for i in related_db_num]
+    return related_ids, related_titles, related_db_num
+
+def create_related_var_df(related_ids, related_titles, related_db_num): 
+    all_rel_ids = []
+    all_rel_titles = []
+    for i in range(0, len(related_ids)):
+        if len(related_ids[i]) != 0:
+            all_rel_ids.extend(related_ids[i])
+            all_rel_titles.extend(related_titles[i])
+    related_var_df = pd.DataFrame()
+    related_var_df['ids'] = all_rel_ids
+    related_var_df['title'] = all_rel_titles
+    related_var_df['db_num'] = related_db_num
+    return related_var_df
+
+
+def xfind_all_related_variables(unique_topic_list=[]):
+    db_num_list = create_db_num_list()
+    related_ids = []
+    related_titles = []
+    for x in range(0, len(db_num_list)):
+        wb.db = db_num_list[x]
+        print(db_num_list[x])
+        db_var = wb.series.info()
+        related_var_titles = []
+        related_var_ids = []
+        for i in range (0, len(db_var.items)):
+            desc_split = db_var.items[i]['value'].split()
+            id_split = db_var.items[i]['id']
+            for val in desc_split:
+                if val.lower() in unique_topic_list:
+                    related_var_titles.append(db_var.items[i]['value'])
+                    related_var_ids.append(id_split)
+        related_ids.append(related_var_ids)
+        related_titles.append(related_var_titles)
+    return related_ids, related_titles
