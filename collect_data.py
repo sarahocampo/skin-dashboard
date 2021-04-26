@@ -13,7 +13,7 @@ def pytrend_data(kw_list):
     pytrend = TrendReq()
     pytrend.build_payload(kw_list=kw_list)
     df = pytrend.interest_by_region().reset_index()
-    df = df[df['eczema']!=0].reset_index(drop=True)
+    # df = df[df['eczema']!=0].reset_index(drop=True)
     return pytrend, df
 
 def econ_name_list(df):
@@ -108,6 +108,7 @@ def retrieve_data(related_var_ids, db_num, year='', econ_name=[]):
         time_range = int(year)
     else:
         time_range = int(year)
+    wb.db = db_num
     all_data = wb.data.DataFrame(related_var_ids, time=time_range, labels=True).reset_index()
     subset_boolean = all_data['economy'].isin(econ_name)
     all_data['boolean'] = subset_boolean
@@ -160,24 +161,14 @@ def create_related_var_df(related_ids, related_titles, related_db_num):
     related_var_df['db_num'] = related_db_num
     return related_var_df
 
-
-def xfind_all_related_variables(unique_topic_list=[]):
-    db_num_list = create_db_num_list()
-    related_ids = []
-    related_titles = []
-    for x in range(0, len(db_num_list)):
-        wb.db = db_num_list[x]
-        print(db_num_list[x])
-        db_var = wb.series.info()
-        related_var_titles = []
-        related_var_ids = []
-        for i in range (0, len(db_var.items)):
-            desc_split = db_var.items[i]['value'].split()
-            id_split = db_var.items[i]['id']
-            for val in desc_split:
-                if val.lower() in unique_topic_list:
-                    related_var_titles.append(db_var.items[i]['value'])
-                    related_var_ids.append(id_split)
-        related_ids.append(related_var_ids)
-        related_titles.append(related_var_titles)
-    return related_ids, related_titles
+def data_all_vars(related_var_df, year='2014', econ_name=[]):
+    all_world_data = []
+    unique_db = related_var_df['db_num'].unique().tolist()
+    for i in range(0, len(unique_db)):
+        data_db = related_var_df[related_var_df['db_num']==unique_db[i]]
+        related_id_list = data_db['ids'].tolist()
+        db_num = unique_db[i]
+        print(db_num)
+        world_data = retrieve_data(related_id_list, db_num=db_num, year=year, econ_name=econ_name)
+        all_world_data.append(world_data)
+    return all_world_data
