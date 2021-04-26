@@ -14,37 +14,36 @@ import wbgapi as wb
 # https://pypi.org/project/pytrends/
 # https://pypi.org/project/wbgapi/
 
+# Make list of keywords of interest.
+kw_list = ['eczema']
+pytrend, df = cd.pytrend_data(kw_list)
 
-pytrend = TrendReq()
-pytrend.build_payload(kw_list=["eczema"])
-df = pytrend.interest_by_region().reset_index()
-df = df[df['eczema']!=0].reset_index(drop=True)
+# Make list of the economic abbreviation for each country.
+econ_name = cd.econ_name_list(df)
+df['econ_name'] = econ_name # Add to df.
+
+# Create df with very basic economic information.
+economic_df = cd.economic_information(econ_name)
+new_df = df.join(economic_df) # Join the two dataframes together.
+
+# Create list of related topics. 
+both_list, top_list, rising_list=cd.related_topics_str_list(pytrend, topic='eczema')
+
+# Format the results and get unique topics only. 
+unique_topic_list = cd.unique_related_topics(both_list)
+
+# Find related variable ids from a certain db.
+test_list = ['fertility', 'expectancy']
+related_var_ids, related_var_titles = cd.find_related_variables(db_num=16, unique_topic_list=test_list)
+
+# Get data from world data.
+world_data = cd.retrieve_data(related_var_ids, 16, year='2014', econ_name=econ_name)
+
+# Join world data and trend data.
+joined_df = cd.order_and_join_data(df, world_data)
 
 
-geoname_list = df['geoName'].tolist()
-econ_name = cd.econ_name_list(df, geoname_list)
-df['econ_name'] = econ_name
 
-
-econ_df = cd.econ_df(econ_name)
-econ_df_list = []
-for name in econ_name:
-    print(str(name))
-    income_value = wb.economy.DataFrame(['{}'.format(str(name))])
-    econ_df_list.append(income_value)
-
-latitude, longitude, income_level, region = cd.econ_df_info(econ_df)
-df['income_level'] = income_level
-df['latitude'] = latitude
-df['longitude'] = longitude
-df['region'] = region
-
-
-
-# wb.source.info()
-# wb.series.info(db=16)
-# wb.time.info(db=16)
-# wb.series.info('NY.GDP.PCAP.CD')
 # wb.data.DataFrame('SP.POP.TOTL', time=2015, labels=True).reset_index()
 
 # wb.db = 66
