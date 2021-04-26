@@ -57,3 +57,4 @@ def join_world_data(df, all_world_data=[]):
         df_b = cd.order_and_join_data(df_a, all_world_data[i]).drop(columns='Country')
     return df_b
 
+ 
