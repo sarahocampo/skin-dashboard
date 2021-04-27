@@ -10,10 +10,13 @@ import pandas as pd
 from pytrends.request import TrendReq
 
 def pytrend_data(kw_list):
-    pytrend = TrendReq()
-    pytrend.build_payload(kw_list=kw_list)
-    df = pytrend.interest_by_region().reset_index()
-    # df = df[df['eczema']!=0].reset_index(drop=True)
+    if len(kw_list) == 1:
+        pytrend = TrendReq()
+        pytrend.build_payload(kw_list=kw_list)
+        df = pytrend.interest_by_region().reset_index()
+        df = df[df[kw_list[0]]!=0].reset_index(drop=True)
+    else:
+        print("List can only have one value.")
     return pytrend, df
 
 def econ_name_list(df):
@@ -51,7 +54,8 @@ def economic_information(econ_name):
     return economic_df
 
 
-def related_topics_str_list(pytrend, topic='eczema'):
+def related_topics_str_list(pytrend, kw_list):
+    topic = kw_list[0]
     rising_list = []
     top_list = []
     both_list = []
@@ -74,6 +78,7 @@ def unique_related_topics(both_list):
         if topic_value not in unique_topic_list:
             topic_value = topic_value.split()
             unique_topic_list.append(topic_value[0].lower())
+    unique_topic_list.remove('topic')
     return unique_topic_list
        
 
@@ -114,6 +119,37 @@ def retrieve_data(related_var_ids, db_num, year='', econ_name=[]):
     all_data['boolean'] = subset_boolean
     world_data = all_data[all_data['boolean']==True].reset_index().drop(columns=['boolean', 'index'])
     return world_data
+    
+
+# def retrieve_data(related_var_ids, db_num, year='', econ_name=[]):
+#     try:
+#         if year == '':
+#             wb.db = db_num
+#             all_data = wb.data.DataFrame(related_var_ids, labels=True, mvr=10).reset_index()
+#             subset_boolean = all_data['economy'].isin(econ_name)
+#             all_data['boolean'] = subset_boolean
+#             world_data = all_data[all_data['boolean']==True].reset_index().drop(columns=['boolean', 'index'])
+#         else:
+#             time_range = int(year)
+#             wb.db = db_num
+#             all_data = wb.data.DataFrame(related_var_ids, time=time_range, labels=True).reset_index()
+#             subset_boolean = all_data['economy'].isin(econ_name)
+#             all_data['boolean'] = subset_boolean
+#             world_data = all_data[all_data['boolean']==True].reset_index().drop(columns=['boolean', 'index'])
+#     except KeyError:
+#         time_list = find_time_range(db_num)
+#         year = max(time_list)
+#         time_range = int(year)
+#         wb.db = db_num
+#         all_data = wb.data.DataFrame(related_var_ids, time=time_range, labels=True).reset_index()
+#         subset_boolean = all_data['economy'].isin(econ_name)
+#         all_data['boolean'] = subset_boolean
+#         world_data = all_data[all_data['boolean']==True].reset_index().drop(columns=['boolean', 'index'])
+#         return world_data
+        
+#     return world_data
+
+
 
 def order_and_join_data(df, world_data):
     sorted_df = df.sort_values(by='econ_name').reset_index().drop(columns='index')
@@ -151,7 +187,7 @@ def find_all_related_variables(unique_topic_list=[]):
 def create_related_var_df(related_ids, related_titles, related_db_num): 
     all_rel_ids = []
     all_rel_titles = []
-    for i in range(0, len(related_ids)):
+    for i in range(0, len(related_ids), 3):
         if len(related_ids[i]) != 0:
             all_rel_ids.extend(related_ids[i])
             all_rel_titles.extend(related_titles[i])
@@ -161,7 +197,7 @@ def create_related_var_df(related_ids, related_titles, related_db_num):
     related_var_df['db_num'] = related_db_num
     return related_var_df
 
-def data_all_vars(related_var_df, year='2014', econ_name=[]):
+def data_all_vars(related_var_df, year='', econ_name=[]):
     all_world_data = []
     unique_db = related_var_df['db_num'].unique().tolist()
     for i in range(0, len(unique_db)):
@@ -172,3 +208,59 @@ def data_all_vars(related_var_df, year='2014', econ_name=[]):
         world_data = retrieve_data(related_id_list, db_num=db_num, year=year, econ_name=econ_name)
         all_world_data.append(world_data)
     return all_world_data
+
+def user_friendly():
+    print("Hello. Type a word that you are interested in:")
+    kw = input()
+    kw_list = [kw]
+    pytrend, df = pytrend_data(kw_list)
+    print("There are a total of ", len(df), " countries that search this term on Google.")
+    # Make list of the economic abbreviation for each country.
+    econ_name = econ_name_list(df)
+    df['econ_name'] = econ_name # Add to df.
+    # Create df with very basic economic information.
+    economic_df = economic_information(econ_name)
+    new_df = df.join(economic_df) # Join the two dataframes together.
+    # Create list of related topics. 
+    both_list, top_list, rising_list = related_topics_str_list(pytrend, kw_list)
+    # Format the results and get unique topics only. 
+    unique_topic_list = unique_related_topics(both_list)
+    print("There are ", len(unique_topic_list), " related topics found.")
+    for topic in unique_topic_list:
+        print(str(topic))
+        
+    print("Do you want to see all related topics (all) or topics from a specific db (specific)?")
+    print("all/specific")
+    db_choice = input()
+    if db_choice == "specific":
+        print("Would you like to see the list of databases available? (Y/N)")
+        see_db = input()
+        if see_db == 'Y':
+            wb.source.info()
+        print("Please input your database id of interest.")
+        db_num_input = input()
+        db_num=int(db_num_input)
+        # Find related variable ids from a certain db.
+        related_var_ids, related_var_titles = find_related_variables(db_num=db_num, unique_topic_list=unique_topic_list)
+        print("There are a total of ", len(related_var_titles), " related variables found in the World Bank Database.")
+        for title in related_var_titles:
+            print(title)
+        # Get data from world data.
+        world_data = retrieve_data(related_var_ids, db_num=db_num, year='', econ_name=econ_name)
+
+        
+        # Join world data and trend data.
+        joined_df = order_and_join_data(df, world_data)
+        return related_var_titles, related_var_ids, unique_topic_list, new_df, joined_df
+    else:    
+        # Find all related variable id's and titles.
+        related_ids, related_titles, related_db_num = find_all_related_variables(unique_topic_list=unique_topic_list)
+        
+        # Make related variable df.
+        related_var_df = create_related_var_df(related_ids, related_titles, related_db_num)
+        
+        # Data from all related variables.
+        all_world_data = data_all_vars(related_var_df, year='', econ_name=econ_name)
+        return related_var_df, all_world_data, unique_topic_list, new_df, joined_df
+
+
